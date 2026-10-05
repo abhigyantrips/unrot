@@ -1,0 +1,53 @@
+{
+  "name": "unrot",
+  "type": "module",
+  "version": "0.0.1",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "astro dev --host 127.0.0.1",
+    "build": "astro check && astro build",
+    "preview": "astro preview",
+    "astro": "astro",
+    "generate-types": "wrangler types --include-runtime false",
+    "check": "astro check",
+    "test": "tsx --test tests/*.test.ts",
+    "db:init": "tsx scripts/init.ts",
+    "publish:content": "tsx scripts/publish.ts",
+    "backup": "tsx scripts/backup.ts export",
+    "restore": "tsx scripts/backup.ts restore",
+    "deploy": "pnpm build && wrangler deploy",
+    "precheck": "pnpm generate-types",
+    "predev": "pnpm generate-types",
+    "test:browser": "tsx tests/browser.ts",
+    "setup:instagram": "tsx scripts/setup.ts",
+    "cloudflare:check": "tsx scripts/check-cloud.ts",
+    "cloudflare:challenge": "tsx scripts/challenge.ts",
+    "test:cloud": "tsx scripts/validate-cloud.ts"
+  },
+  "dependencies": {
+    "@astrojs/cloudflare": "^14.3.3",
+    "@tailwindcss/vite": "^4.3.3",
+    "astro": "^7.3.5",
+    "lucide-astro": "^0.556.0",
+    "markdown-it": "^15.0.2",
+    "sanitize-html": "^2.18.0",
+    "sharp": "^0.35.5",
+    "tailwindcss": "^4.3.3",
+    "wrangler": "^4.147.0"
+  },
+  "allowScripts": {
+    "esbuild": true
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.10",
+    "@cloudflare/workers-types": "^5.20261004.1",
+    "@types/markdown-it": "^14.2.0",
+    "@types/node": "^26.6.4",
+    "@types/sanitize-html": "^2.16.2",
+    "playwright": "^1.63.0",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3"
+  }
+}
