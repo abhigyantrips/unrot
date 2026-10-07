@@ -36,9 +36,19 @@
 }
 
 #post-dialog { width: calc(100% - 2rem); max-height: calc(100dvh - 3rem); }
+#post-dialog .media-slide { aspect-ratio: var(--media-ratio, 1); }
 @media (min-width: 768px) {
-  #post-dialog { overflow: hidden; }
-  #post-dialog [data-carousel] { height: min(48rem, calc(100dvh - 3rem - 2px)); }
-  #post-dialog [aria-label='Archived media'] { min-height: 0; }
-  #post-dialog .post-detail { overflow-y: auto; }
+  #post-dialog { width: fit-content; overflow: hidden; }
+  #post-dialog [data-carousel] {
+    --post-media-width: min(
+      calc(min(48rem, 100dvh - 3rem - 2px) * var(--media-ratio, 1)),
+      calc(100vw - 2rem - 26rem - 2px),
+      calc(38rem - 2px)
+    );
+    grid-template-columns: var(--post-media-width) 26rem;
+    height: calc(var(--post-media-width) / var(--media-ratio, 1));
+  }
+  #post-dialog [aria-label='Archived media'] { min-height: 0; grid-column: auto; }
+  #post-dialog .post-detail { grid-column: auto; overflow-y: auto; }
+  #post-dialog .media-slide { height: 100%; }
 }

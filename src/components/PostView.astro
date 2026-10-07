@@ -7,7 +7,7 @@ const { post } = Astro.props;
 ---
 <div class="grid md:grid-cols-5" data-carousel>
   <section class="relative overflow-hidden bg-stone-950 md:col-span-3" aria-label="Archived media">
-    {post.assets.map((asset,index) => <div data-slide hidden={index !== 0} class="h-full">
+    {post.assets.map((asset,index) => <div data-slide data-media-ratio={asset.width / asset.height || 1} hidden={index !== 0} class="h-full">
       {asset.type === 'video' ? <video class="media-slide" controls playsinline preload="metadata" poster={mediaUrl(asset.preview_key)} src={mediaUrl(asset.key)} aria-label={`Video ${index + 1}`} /> : <img class="media-slide" src={mediaUrl(asset.key)} alt={`Media ${index + 1} by ${post.creator || 'Instagram creator'}`} width={asset.width} height={asset.height} />}
     </div>)}
     {post.assets.length > 1 && <div class="absolute inset-x-0 bottom-4 flex items-center justify-center gap-3">

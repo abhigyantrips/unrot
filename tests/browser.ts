@@ -84,6 +84,17 @@ try {
   assert.equal(await page.locator('#post-content [aria-label="Post permalink"]').getAttribute('href'),'/posts/p29');
   assert.equal(await page.locator('#post-close').evaluate(el => Boolean(el.closest('.post-detail'))),true);
   assert.equal(await page.locator('#post-content .post-detail').evaluate(el => [...el.children].map(n => n.className).join('|')),'post-author-row|notes post-note|post-caption|flex flex-wrap gap-2');
+  const assertMediaFits = async () => {
+    const dimensions = await page.locator('#post-content [data-slide]:not([hidden]) .media-slide').evaluate((el: HTMLImageElement | HTMLVideoElement) => {
+      const pane = el.closest('section')!.getBoundingClientRect();
+      const width = el instanceof HTMLVideoElement ? el.videoWidth : el.naturalWidth;
+      const height = el instanceof HTMLVideoElement ? el.videoHeight : el.naturalHeight;
+      return { paneRatio: pane.width / pane.height, mediaRatio: width / height };
+    });
+    assert.ok(Math.abs(dimensions.paneRatio - dimensions.mediaRatio) < 0.01,JSON.stringify(dimensions));
+  };
+  await page.locator('#post-content img').evaluate(async (img: HTMLImageElement) => img.decode());
+  await assertMediaFits();
   const dialogBounds = await page.locator('#post-dialog').boundingBox();
   assert.ok(dialogBounds && dialogBounds.y >= 23 && dialogBounds.y + dialogBounds.height <= 877);
   const caption = page.locator('#post-content [data-caption]');
@@ -95,11 +106,27 @@ try {
   assert.equal(await caption.locator('[data-caption-more]').isVisible(),false);
   await page.locator('#post-content [data-next]').click();
   const player = page.locator('#post-content video'); await player.evaluate(async (video: HTMLVideoElement) => { await video.play(); });
+  await assertMediaFits();
   await player.evaluate((v: HTMLVideoElement) => { v.currentTime = 2; }); await page.waitForFunction(() => document.querySelector<HTMLVideoElement>('#post-content video')!.currentTime >= 2);
   await page.locator('#post-content [data-previous]').click(); assert.equal(await player.evaluate((v: HTMLVideoElement) => v.paused),true);
   await page.keyboard.press('Escape'); await page.waitForFunction(() => !document.querySelector<HTMLDialogElement>('#post-dialog')!.open);
   assert.ok(page.url().endsWith('/')); assert.equal(await page.evaluate(() => (document.activeElement as HTMLElement).dataset.postId),'p29');
   await page.goForward(); await page.locator('#post-content [data-carousel]').waitFor(); await page.locator('#post-close').click(); await page.waitForFunction(() => !document.querySelector<HTMLDialogElement>('#post-dialog')!.open);
+  for (const id of ['p28','p27']) {
+    await page.locator(`[data-post-id="${id}"]`).click();
+    await page.locator('#post-content img').evaluate(async (img: HTMLImageElement) => img.decode());
+    await assertMediaFits();
+    if (id === 'p28') {
+      await page.screenshot({ path: 'test-results/desktop-portrait-post.png' });
+      await page.setViewportSize({ width: 800,height: 700 });
+      await assertMediaFits();
+      const bounds = await page.locator('#post-dialog').boundingBox();
+      assert.ok(bounds && bounds.x >= 15 && bounds.y >= 23 && bounds.x + bounds.width <= 785 && bounds.y + bounds.height <= 677);
+      await page.setViewportSize({ width: 1440,height: 900 });
+    }
+    await page.locator('#post-close').click();
+    await page.waitForFunction(() => !document.querySelector<HTMLDialogElement>('#post-dialog')!.open);
+  }
   await page.locator('#refine').click(); await page.locator('#filter-tags input').first().waitFor();
   await page.locator('label:has(input[value="architecture"])').click(); await page.locator('label:has(input[value="design"])').click(); await page.locator('label:has(input[name="match"][value="all"])').click(); await page.locator('#filter-form button[type="submit"]').click();
   await page.waitForFunction(() => document.querySelectorAll('[data-post-id]').length === 4); assert.ok(page.url().includes('match=all')); assert.ok(page.url().includes('tag=architecture'));

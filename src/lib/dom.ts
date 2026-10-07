@@ -49,7 +49,7 @@ export function postView(post: Post, notesHtml: string, urlFor = mediaUrl, onClo
   const root = element('div','grid md:grid-cols-5'); root.dataset.carousel = '';
   const media = element('section','relative overflow-hidden bg-stone-950 md:col-span-3'); media.setAttribute('aria-label','Archived media');
   post.assets.forEach((a,index) => {
-    const slide = element('div','h-full'); slide.dataset.slide = ''; slide.hidden = index !== 0;
+    const slide = element('div','h-full'); slide.dataset.slide = ''; slide.dataset.mediaRatio = String(a.width / a.height || 1); slide.hidden = index !== 0;
     if (a.type === 'video') {
       const video = element('video','media-slide'); video.controls = true; video.playsInline = true; video.preload = 'metadata'; video.poster = urlFor(a.preview_key); video.src = urlFor(a.key); video.setAttribute('aria-label',`Video ${index + 1}`); slide.append(video);
     } else {
@@ -105,11 +105,21 @@ export function mountCarousels(root: ParentNode) {
   for (const carousel of carousels) {
     if (carousel.dataset.mounted) continue; carousel.dataset.mounted = 'true';
     const slides = [...carousel.querySelectorAll<HTMLElement>('[data-slide]')];
+    const fitMedia = () => {
+      const active = slides.find(slide => !slide.hidden);
+      if (!active) return;
+      const video = active.querySelector('video');
+      const ratio = video?.videoWidth && video.videoHeight ? video.videoWidth / video.videoHeight : Number(active.dataset.mediaRatio) || 1;
+      carousel.style.setProperty('--media-ratio',String(ratio));
+      requestAnimationFrame(() => mountCaptions(carousel));
+    };
+    fitMedia();
+    carousel.querySelectorAll('video').forEach(video => video.addEventListener('loadedmetadata',fitMedia));
     if (slides.length < 2) continue;
     let position = 0;
     const move = (delta: number) => {
       pauseMedia(carousel); slides[position]!.hidden = true;
-      position = (position + delta + slides.length) % slides.length; slides[position]!.hidden = false;
+      position = (position + delta + slides.length) % slides.length; slides[position]!.hidden = false; fitMedia();
       const counter = carousel.querySelector('[data-counter]'); if (counter) counter.textContent = `${position + 1} / ${slides.length}`;
     };
     carousel.querySelector('[data-previous]')?.addEventListener('click',() => move(-1));
