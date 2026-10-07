@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import type { Bindings } from '../src/lib/types';
 export const LOCAL_STATE = '.wrangler/state/v3';
 export async function localPlatform(persist: string | false = LOCAL_STATE) {
-  return getPlatformProxy<Bindings>({ configPath: 'wrangler.jsonc', remoteBindings: false, persist: persist === false ? false : { path: persist } });
+  return getPlatformProxy<Bindings>({ configPath: 'wrangler.local.jsonc', remoteBindings: false, persist: persist === false ? false : { path: persist } });
 }
 export async function migrate(db: D1Database, includeLocal = true) {
   for (const path of ['migrations/0001_public.sql', ...(includeLocal ? ['local/schema.sql'] : [])]) {

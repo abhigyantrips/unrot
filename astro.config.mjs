@@ -11,7 +11,11 @@ export default defineConfig({
   site: 'https://unrot.abhi.now',
   output: 'server',
   session: false,
-  adapter: cloudflare({ imageService: 'passthrough', remoteBindings: false }),
+  adapter: cloudflare({
+    imageService: 'passthrough',
+    configPath: process.env.NODE_ENV === 'production' ? 'wrangler.remote.jsonc' : 'wrangler.local.jsonc',
+    remoteBindings: false,
+  }),
   integrations: [curator()],
   server: { host: '127.0.0.1' },
 

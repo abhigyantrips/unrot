@@ -22,7 +22,7 @@ try {
   const created = await cli('d1','create',name); dbCreated = true;
   const id = /"database_id":\s*"([a-f0-9-]+)"/.exec(created)?.[1]; if (!id) throw new Error('Could not read test database ID.');
   await cli('r2','bucket','create',name); bucketCreated = true;
-  const base = JSON.parse(await readFile('wrangler.jsonc','utf8'));
+  const base = JSON.parse(await readFile('wrangler.remote.jsonc','utf8'));
   const path = `${temp}/wrangler.json`;
   await writeFile(path,JSON.stringify({ name,account_id: base.account_id,compatibility_date: base.compatibility_date,d1_databases: [{ binding: 'DB',database_name: name,database_id: id,remote: true }],r2_buckets: [{ binding: 'MEDIA',bucket_name: name,remote: true }] }));
   await cli('d1','execute',name,'--remote','--file',resolve('migrations/0001_public.sql'),'--config',path);
