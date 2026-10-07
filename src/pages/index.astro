@@ -3,91 +3,330 @@ import { env } from 'cloudflare:workers';
 import { SlidersHorizontal, X, ArrowDown, Bookmark, RotateCcw } from 'lucide-astro';
 import Layout from '../layouts/Layout.astro';
 import Card from '../components/Card.astro';
-import { listPosts,listTags,filters,QueryError } from '../lib/public';
+import { listPosts, listTags, filters, QueryError } from '../lib/public';
 import { tagClass, type Post, type Tag } from '../lib/types';
-let posts: Post[] = [], tags: Tag[] = [], cursor: string | null = null, error = '';
-let selected: string[] = [], mode = 'any';
+let posts: Post[] = [],
+	tags: Tag[] = [],
+	cursor: string | null = null,
+	error = '';
+let selected: string[] = [],
+	mode = 'any';
 try {
-  ({ tags: selected,mode } = filters(Astro.url.searchParams));
-  const [batch,available] = await Promise.all([listPosts(env.DB,Astro.url.searchParams),listTags(env.DB)]);
-  posts = batch.posts; cursor = batch.cursor; tags = available;
-} catch (e) { error = e instanceof QueryError ? e.message : 'The archive is taking a moment. Please try again.'; Astro.response.status = e instanceof QueryError ? 400 : 503; }
+	({ tags: selected, mode } = filters(Astro.url.searchParams));
+	const [batch, available] = await Promise.all([listPosts(env.DB, Astro.url.searchParams), listTags(env.DB)]);
+	posts = batch.posts;
+	cursor = batch.cursor;
+	tags = available;
+} catch (e) {
+	error = e instanceof QueryError ? e.message : 'The archive is taking a moment. Please try again.';
+	Astro.response.status = e instanceof QueryError ? 400 : 503;
+}
 ---
+
 <Layout archive>
-  <header class="archive-header">
-    <div id="archive-hero" class="archive-hero">
-      <div class="hero-overflow">
-        <div class="hero-copy">
-          <h1 class="font-serif text-3xl leading-tight tracking-tight sm:text-5xl">a curated feed of reels and such.</h1>
-          <p class="mx-auto mt-5 max-w-2xl text-sm leading-relaxed text-stone-500 sm:text-base">Whenever <a href="https://abhi.now" class="text-stone-700 underline decoration-stone-300 underline-offset-4 transition hover:text-amber-800 hover:decoration-amber-800" target="_blank" rel="noopener noreferrer">Abhigyan</a> re-installs Instagram, he loves a lot of reels and saves them for later. but to access them he has to go to Instagram again. that's not great, so here's his archive tagged and made public.</p>
-        </div>
-      </div>
-    </div>
-    <div class="hero-divider">
-      <button id="header-toggle" type="button" aria-controls="archive-hero" aria-expanded="true" class="header-toggle">Hide Header</button>
-    </div>
-  </header>
-  <div id="archive-grid" class="mt-6 grid grid-cols-1 gap-4 sm:auto-rows-64 sm:grid-cols-3 lg:grid-cols-4" data-cursor={cursor ?? ''}>{posts.map((post,index) => <Card post={post} index={index} />)}</div>
-  <section id="archive-state" hidden={posts.length > 0 && !error} class="rounded-2xl border border-dashed border-stone-300 px-6 py-16 text-center" role="status">
-    <span class="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-amber-100 text-amber-800"><Bookmark size={24} /></span>
-    <h2 id="state-title" class="font-serif text-2xl">{error ? 'A moment, please.' : selected.length ? 'Nothing here just yet.' : 'A place for good discoveries.'}</h2>
-    <p id="state-message" class="mx-auto mt-3 max-w-sm text-sm leading-relaxed text-stone-500">{error || (selected.length ? 'Try a different combination of tags, or explore the whole collection.' : 'The first saved finds are on their way. Come back for something worth returning to.')}</p>
-    <button id="retry" class="button-secondary mt-6" hidden={!error}><RotateCcw size={14} /> Try again</button>
-  </section>
-  <div class="mt-8 flex flex-col items-center gap-3" id="continuation">
-    <p id="load-status" class="text-xs text-stone-500" aria-live="polite"></p>
-    <button id="load-more" class="button-secondary" hidden={!cursor}>Keep exploring <ArrowDown size={15} /></button>
-    <div id="sentinel" class="h-1 w-full" aria-hidden="true"></div>
-  </div>
-  <button id="refine" class="button fixed bottom-6 right-5 z-20 shadow-lg sm:bottom-8 sm:right-8"><SlidersHorizontal size={17} />Refine<span id="filter-count" hidden={!selected.length} class="rounded-full bg-stone-600 px-2 py-0.5 text-xs">{selected.length}</span></button>
-  <dialog id="refine-dialog" class="max-w-md p-6 sm:p-8" aria-labelledby="refine-title">
-    <div class="mb-2 flex items-center justify-between"><h2 id="refine-title" class="font-serif text-3xl">Find your thread.</h2><button id="refine-close" class="rounded-full p-2 hover:bg-stone-200" aria-label="Close filters"><X size={20} /></button></div>
-    <p class="mb-6 text-sm text-stone-500">A few tags to narrow the collection.</p>
-    <form id="filter-form" method="get" action="/">
-      <fieldset><legend class="mb-3 text-xs font-medium uppercase tracking-widest text-stone-500">Tags</legend><div id="filter-tags" class="flex flex-wrap gap-2">{tags.map(tag => <label class="cursor-pointer"><input type="checkbox" name="tag" value={tag.id} checked={selected.includes(tag.id)} class="peer sr-only" /><span class:list={['tag border-2 border-transparent peer-checked:border-stone-700 peer-focus-visible:outline-2 peer-focus-visible:outline-stone-700',tagClass[tag.color]]}>{tag.name}</span></label>)}{!tags.length && <p class="text-sm text-stone-500">Tags appear with the first published posts.</p>}</div></fieldset>
-      <fieldset class="mt-7"><legend class="mb-3 text-xs font-medium uppercase tracking-widest text-stone-500">Match selected tags</legend><div class="flex gap-2">{['any','all'].map(value => <label class="cursor-pointer"><input type="radio" name="match" value={value} checked={mode === value} class="peer sr-only" /><span class="inline-flex rounded-full border border-stone-300 px-5 py-2 text-sm capitalize peer-checked:border-stone-800 peer-checked:bg-stone-800 peer-checked:text-white peer-focus-visible:outline-2 peer-focus-visible:outline-stone-700">{value}</span></label>)}</div><p class="mt-2 text-xs text-stone-500">Any finds one or more. All finds every selected tag.</p></fieldset>
-      <div class="mt-8 flex items-center justify-between"><button id="clear-filters" type="button" class="text-sm text-stone-500 underline underline-offset-4">Clear filters</button><button class="button" type="submit">Show discoveries</button></div>
-    </form>
-  </dialog>
-  <dialog id="post-dialog" aria-labelledby="post-dialog-title"><div class="sticky top-0 z-10 flex items-center justify-between border-b border-stone-200 bg-stone-50 px-5 py-3"><h2 id="post-dialog-title" class="text-xs text-stone-500">A saved discovery</h2><div class="flex items-center gap-4"><a id="post-permalink" class="text-xs underline underline-offset-4">Permalink</a><button id="post-close" class="rounded-full p-2 hover:bg-stone-200" aria-label="Close post"><X size={20} /></button></div></div><div id="post-content" class="min-h-64"></div></dialog>
-  <script>import '../lib/archive-client';</script>
-  <script>
-    const toggle = document.querySelector<HTMLButtonElement>('#header-toggle')!;
-    const hero = document.querySelector<HTMLElement>('#archive-hero')!;
-    toggle.addEventListener('click', () => {
-      const collapsed = toggle.getAttribute('aria-expanded') === 'true';
-      hero.classList.toggle('is-collapsed', collapsed);
-      hero.inert = collapsed;
-      toggle.setAttribute('aria-expanded', String(!collapsed));
-      toggle.textContent = collapsed ? 'unrot.' : 'Hide Header';
-      toggle.setAttribute('aria-label', collapsed ? 'unrot. Show header' : 'Hide Header');
-    });
-  </script>
+	<header class="archive-header">
+		<div
+			id="archive-hero"
+			class="archive-hero"
+		>
+			<div class="hero-overflow">
+				<div class="hero-copy">
+					<h1 class="font-serif text-3xl leading-tight tracking-tight sm:text-5xl">
+						a curated feed of reels and such.
+					</h1>
+					<p class="mx-auto mt-5 max-w-2xl text-sm leading-relaxed text-stone-500 sm:text-base">
+						Whenever <a
+							href="https://abhi.now"
+							class="text-stone-700 underline decoration-stone-300 underline-offset-4 transition hover:text-amber-800 hover:decoration-amber-800"
+							target="_blank"
+							rel="noopener noreferrer"
+							>Abhigyan</a
+						> re-installs Instagram, he loves a lot of reels and saves them for later. But to access them he has
+						to go to Instagram again, and then he scrolls again. That's not great, so here's his archive tagged
+						and made public.
+					</p>
+				</div>
+			</div>
+		</div>
+		<div class="hero-divider">
+			<button
+				id="header-toggle"
+				type="button"
+				aria-controls="archive-hero"
+				aria-expanded="true"
+				class="header-toggle"
+				>Hide Header</button
+			>
+		</div>
+	</header>
+	<div
+		id="archive-grid"
+		class="mt-6 grid grid-cols-1 gap-4 sm:auto-rows-64 sm:grid-cols-3 lg:grid-cols-4"
+		data-cursor={cursor ?? ''}
+	>
+		{
+			posts.map((post, index) => (
+				<Card
+					post={post}
+					index={index}
+				/>
+			))
+		}
+	</div>
+	<section
+		id="archive-state"
+		hidden={posts.length > 0 && !error}
+		class="rounded-2xl border border-dashed border-stone-300 px-6 py-16 text-center"
+		role="status"
+	>
+		<span
+			class="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-amber-100 text-amber-800"
+			><Bookmark size={24} /></span
+		>
+		<h2
+			id="state-title"
+			class="font-serif text-2xl"
+		>
+			{
+				error
+					? 'A moment, please.'
+					: selected.length
+						? 'Nothing here just yet.'
+						: 'A place for good discoveries.'
+			}
+		</h2>
+		<p
+			id="state-message"
+			class="mx-auto mt-3 max-w-sm text-sm leading-relaxed text-stone-500"
+		>
+			{
+				error ||
+					(selected.length
+						? 'Try a different combination of tags, or explore the whole collection.'
+						: 'The first saved finds are on their way. Come back for something worth returning to.')
+			}
+		</p>
+		<button
+			id="retry"
+			class="button-secondary mt-6"
+			hidden={!error}
+			><RotateCcw size={14} /> Try again</button
+		>
+	</section>
+	<div
+		class="mt-8 flex flex-col items-center gap-3"
+		id="continuation"
+	>
+		<p
+			id="load-status"
+			class="text-xs text-stone-500"
+			aria-live="polite"
+		>
+		</p>
+		<button
+			id="load-more"
+			class="button-secondary"
+			hidden={!cursor}
+			>Keep exploring <ArrowDown size={15} /></button
+		>
+		<div
+			id="sentinel"
+			class="h-1 w-full"
+			aria-hidden="true"
+		>
+		</div>
+	</div>
+	<button
+		id="refine"
+		class="button fixed bottom-6 right-5 z-20 shadow-lg sm:bottom-8 sm:right-8"
+		><SlidersHorizontal size={17} />Refine<span
+			id="filter-count"
+			hidden={!selected.length}
+			class="rounded-full bg-stone-600 px-2 py-0.5 text-xs"
+			>{selected.length}</span
+		></button
+	>
+	<dialog
+		id="refine-dialog"
+		class="max-w-md p-6 sm:p-8"
+		aria-labelledby="refine-title"
+	>
+		<div class="mb-2 flex items-center justify-between">
+			<h2
+				id="refine-title"
+				class="font-serif text-3xl"
+			>
+				Find your thread.
+			</h2><button
+				id="refine-close"
+				class="rounded-full p-2 hover:bg-stone-200"
+				aria-label="Close filters"
+				><X size={20} /></button>
+		</div>
+		<p class="mb-6 text-sm text-stone-500">A few tags to narrow the collection.</p>
+		<form
+			id="filter-form"
+			method="get"
+			action="/"
+		>
+			<fieldset>
+				<legend class="mb-3 text-xs font-medium uppercase tracking-widest text-stone-500">Tags</legend><div
+					id="filter-tags"
+					class="flex flex-wrap gap-2"
+				>
+					{
+						tags.map((tag) => (
+							<label class="cursor-pointer">
+								<>
+									<input
+										type="checkbox"
+										name="tag"
+										value={tag.id}
+										checked={selected.includes(tag.id)}
+										class="peer sr-only"
+									/>
+									<span
+										class:list={[
+											'tag border-2 border-transparent peer-checked:border-stone-700 peer-focus-visible:outline-2 peer-focus-visible:outline-stone-700',
+											tagClass[tag.color],
+										]}
+									>
+										{tag.name}
+									</span>
+								</>
+							</label>
+						))
+					}{!tags.length && <p class="text-sm text-stone-500">Tags appear with the first published posts.</p>}
+				</div>
+			</fieldset>
+			<fieldset class="mt-7">
+				<legend class="mb-3 text-xs font-medium uppercase tracking-widest text-stone-500"
+					>Match selected tags</legend
+				><div class="flex gap-2">
+					{
+						['any', 'all'].map((value) => (
+							<label class="cursor-pointer">
+								<>
+									<input
+										type="radio"
+										name="match"
+										value={value}
+										checked={mode === value}
+										class="peer sr-only"
+									/>
+									<span class="inline-flex rounded-full border border-stone-300 px-5 py-2 text-sm capitalize peer-checked:border-stone-800 peer-checked:bg-stone-800 peer-checked:text-white peer-focus-visible:outline-2 peer-focus-visible:outline-stone-700">
+										{value}
+									</span>
+								</>
+							</label>
+						))
+					}
+				</div><p class="mt-2 text-xs text-stone-500">Any finds one or more. All finds every selected tag.</p>
+			</fieldset>
+			<div class="mt-8 flex items-center justify-between">
+				<button
+					id="clear-filters"
+					type="button"
+					class="text-sm text-stone-500 underline underline-offset-4"
+					>Clear filters</button
+				><button
+					class="button"
+					type="submit"
+					>Show discoveries</button>
+			</div>
+		</form>
+	</dialog>
+	<dialog
+		id="post-dialog"
+		aria-label="Saved post"
+	>
+		<div
+			id="post-content"
+			class="min-h-64"
+		>
+		</div>
+	</dialog>
+	<script>
+		import '../lib/archive-client';
+	</script>
+	<script>
+		const toggle = document.querySelector<HTMLButtonElement>('#header-toggle')!;
+		const hero = document.querySelector<HTMLElement>('#archive-hero')!;
+		toggle.addEventListener('click', () => {
+			const collapsed = toggle.getAttribute('aria-expanded') === 'true';
+			hero.classList.toggle('is-collapsed', collapsed);
+			hero.inert = collapsed;
+			toggle.setAttribute('aria-expanded', String(!collapsed));
+			toggle.textContent = collapsed ? 'unrot.' : 'Hide Header';
+			toggle.setAttribute('aria-label', collapsed ? 'unrot. Show header' : 'Hide Header');
+		});
+	</script>
 </Layout>
 
 <style>
-  .archive-hero {
-    display: grid;
-    grid-template-rows: 1fr;
-    opacity: 1;
-    transition: grid-template-rows 420ms cubic-bezier(0.22, 1, 0.36, 1), opacity 280ms ease;
-  }
-  .archive-hero.is-collapsed { grid-template-rows: 0fr; opacity: 0; }
-  .hero-overflow { min-height: 0; overflow: hidden; }
-  .hero-copy { padding: clamp(3rem, 7vw, 6rem) 0 clamp(2.5rem, 5vw, 4rem); text-align: center; }
-  .hero-divider { display: flex; align-items: center; gap: 0.75rem; }
-  .hero-divider::before, .hero-divider::after { content: ''; height: 1px; flex: 1; background: var(--color-stone-200); }
-  .header-toggle {
-    flex: none;
-    min-width: 7.5rem;
-    padding: 0.625rem 1.25rem;
-    border-radius: 999px;
-    color: var(--color-stone-500);
-    font-size: 0.75rem;
-    transition: background-color 160ms ease, color 160ms ease;
-  }
-  .header-toggle:hover { background: var(--color-stone-200); color: var(--color-stone-800); }
-  @media (prefers-reduced-motion: reduce) {
-    .archive-hero, .header-toggle { transition: none; }
-  }
+	.archive-hero {
+		display: grid;
+		grid-template-rows: 1fr;
+		opacity: 1;
+		transition:
+			grid-template-rows 420ms cubic-bezier(0.22, 1, 0.36, 1),
+			opacity 280ms ease;
+	}
+	.archive-hero.is-collapsed {
+		grid-template-rows: 0fr;
+		opacity: 0;
+	}
+	.hero-overflow {
+		min-height: 0;
+		overflow: hidden;
+	}
+	.hero-copy {
+		padding: clamp(3rem, 7vw, 6rem) 0 clamp(2.5rem, 5vw, 4rem);
+		text-align: center;
+	}
+	.hero-divider {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.75rem;
+	}
+	.hero-divider::before,
+	.hero-divider::after {
+		content: '';
+		height: 1px;
+		flex: 0 1 25%;
+	}
+	.hero-divider::before {
+		background: linear-gradient(to right, transparent, var(--color-stone-300));
+	}
+	.hero-divider::after {
+		background: linear-gradient(to left, transparent, var(--color-stone-300));
+	}
+	.header-toggle {
+		flex: none;
+		min-width: 7.5rem;
+		padding: 0.625rem 1.25rem;
+		border: 1px solid var(--color-stone-300);
+		border-radius: 999px;
+		color: var(--color-stone-500);
+		font-size: 0.875rem;
+		transition:
+			border-color 160ms ease,
+			background-color 160ms ease,
+			color 160ms ease;
+	}
+	.header-toggle[aria-expanded='false'] {
+		font-weight: 700;
+	}
+	.header-toggle:hover {
+		border-color: var(--color-stone-400);
+		background: var(--color-stone-100);
+		color: var(--color-stone-800);
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.archive-hero,
+		.header-toggle {
+			transition: none;
+		}
+	}
 </style>

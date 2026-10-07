@@ -73,17 +73,20 @@ async function loadTags() {
 async function showPost(id: string, push: boolean) {
   postAbort?.abort(); postAbort = new AbortController();
   if (!dialog.open) { scrollPosition = window.scrollY; document.body.style.overflow = 'hidden'; dialog.showModal(); }
-  content.replaceChildren(element('p','p-8 text-sm text-stone-500','Opening your discovery…'));
-  document.querySelector<HTMLAnchorElement>('#post-permalink')!.href = `/posts/${id}`;
+  dialog.removeAttribute('aria-labelledby');
+  const loading = element('div','space-y-4 p-8');
+  const close = element('button','button-secondary','Close'); close.type = 'button'; close.onclick = closePost;
+  loading.append(element('p','text-sm text-stone-500','Opening your discovery…'),close);
+  content.replaceChildren(loading);
   if (push) history.pushState({ dialog: true,id,gridUrl,scrollPosition },'',`/posts/${id}`);
   try {
     const { post,notesHtml } = await json<{ post: Post; notesHtml: string }>(`/api/posts/${encodeURIComponent(id)}`,postAbort.signal);
-    content.replaceChildren(postView(post,notesHtml));
-    document.querySelector('#post-dialog-title')!.textContent = post.creator ? `Saved from @${post.creator}` : 'A saved discovery';
+    content.replaceChildren(postView(post,notesHtml,undefined,closePost));
+    dialog.setAttribute('aria-labelledby','post-dialog-title');
   } catch (error) {
     if ((error as Error).name === 'AbortError') return;
     const area = element('div','space-y-4 p-8'); area.append(element('p','text-sm',(error as Error).message));
-    const again = element('button','button-secondary','Try again'); again.onclick = () => void showPost(id,false); area.append(again); content.replaceChildren(area);
+    const again = element('button','button-secondary','Try again'); again.onclick = () => void showPost(id,false); area.append(again,close); content.replaceChildren(area);
   }
 }
 function hidePost() {
@@ -96,7 +99,6 @@ grid.addEventListener('click',event => {
   if (!anchor || event instanceof MouseEvent && (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0)) return;
   event.preventDefault(); focusCard = anchor; void showPost(anchor.dataset.postId!,true);
 });
-document.querySelector('#post-close')!.addEventListener('click',closePost);
 dialog.addEventListener('cancel',event => { event.preventDefault(); closePost(); });
 dialog.addEventListener('click',event => { if (event.target === dialog) { const r = dialog.getBoundingClientRect(); if (event.clientX < r.left || event.clientX > r.right || event.clientY < r.top || event.clientY > r.bottom) closePost(); } });
 window.addEventListener('popstate',() => {

@@ -40,7 +40,7 @@ try {
     const id = `p${String(i).padStart(2,'0')}`, a = fixtures[i % 3]!;
     const date = `2025-01-${String(i).padStart(2,'0')}T00:00:00.000Z`;
     await env.DB.batch([
-      env.DB.prepare('INSERT INTO live_posts(id,source_url,creator,caption,source_date,notes,published_at,updated_at,revision_id,visible) VALUES(?,?,?,?,?,?,?,?,?,?)').bind(id,'https://www.instagram.com/p/FIXTURE/','fixture_creator','An original caption','2024-01-01T00:00:00.000Z','**A note for later.**\n\n<script>alert(1)</script>',date,date,`revision${i}`,i === 1 ? 0 : 1),
+      env.DB.prepare('INSERT INTO live_posts(id,source_url,creator,caption,source_date,notes,published_at,updated_at,revision_id,visible) VALUES(?,?,?,?,?,?,?,?,?,?)').bind(id,'https://www.instagram.com/p/FIXTURE/','fixture_creator',i === 29 ? Array.from({ length: 12 },(_,line) => `Caption line ${line + 1}: a discovery worth returning to.`).join('\n') : 'An original caption','2024-01-01T00:00:00.000Z','**A note for later.**\n\n<script>alert(1)</script>',date,date,`revision${i}`,i === 1 ? 0 : 1),
       ...[a,...(i === 29 ? [video] : [])].map(a => env.DB.prepare('INSERT INTO live_assets VALUES(?,?,?,?,?,?,?,?,?,?)').bind(id,a.position,a.key,a.preview_key,a.type,a.mime,a.width,a.height,a.hash,a.bytes)),
       env.DB.prepare('INSERT INTO live_post_tags VALUES(?,?)').bind(id,i % 2 === 0 ? 'architecture' : 'places'),
       ...(i % 3 === 0 ? [env.DB.prepare('INSERT INTO live_post_tags VALUES(?,?)').bind(id,'design')] : []),
@@ -75,6 +75,24 @@ try {
   assert.ok(await page.locator('#post-content .tag').count() > 0);
   assert.equal(await page.locator('#post-dialog').evaluate((d: HTMLDialogElement) => d.open),true);
   assert.equal(await page.locator('#post-content script').count(),0);
+  assert.equal(await page.locator('#post-dialog > div').count(),1);
+  assert.equal(await page.locator('#post-content details').count(),0);
+  assert.equal(await page.locator('#post-dialog').getAttribute('aria-labelledby'),'post-dialog-title');
+  assert.equal(await page.locator('#post-dialog-title').textContent(),'@fixture_creator');
+  assert.equal(await page.locator('#post-content [aria-label="View author profile"]').getAttribute('href'),'https://www.instagram.com/fixture_creator/');
+  assert.equal(await page.locator('#post-content [aria-label="View original post"]').getAttribute('href'),'https://www.instagram.com/p/FIXTURE/');
+  assert.equal(await page.locator('#post-content [aria-label="Post permalink"]').getAttribute('href'),'/posts/p29');
+  assert.equal(await page.locator('#post-close').evaluate(el => Boolean(el.closest('.post-detail'))),true);
+  assert.equal(await page.locator('#post-content .post-detail').evaluate(el => [...el.children].map(n => n.className).join('|')),'post-author-row|notes post-note|post-caption|flex flex-wrap gap-2');
+  const dialogBounds = await page.locator('#post-dialog').boundingBox();
+  assert.ok(dialogBounds && dialogBounds.y >= 23 && dialogBounds.y + dialogBounds.height <= 877);
+  const caption = page.locator('#post-content [data-caption]');
+  await caption.locator('[data-caption-more]').waitFor({ state: 'visible' });
+  assert.ok(await caption.evaluate(el => el.getBoundingClientRect().height <= parseFloat(getComputedStyle(el).lineHeight) * 6 + 1));
+  await page.screenshot({ path: 'test-results/desktop-post.png' });
+  await caption.locator('[data-caption-more]').click();
+  assert.ok((await caption.textContent())?.includes('Caption line 12'));
+  assert.equal(await caption.locator('[data-caption-more]').isVisible(),false);
   await page.locator('#post-content [data-next]').click();
   const player = page.locator('#post-content video'); await player.evaluate(async (video: HTMLVideoElement) => { await video.play(); });
   await player.evaluate((v: HTMLVideoElement) => { v.currentTime = 2; }); await page.waitForFunction(() => document.querySelector<HTMLVideoElement>('#post-content video')!.currentTime >= 2);
@@ -93,8 +111,22 @@ try {
   assert.equal(await page.locator('#archive-grid .feed-author').count(),28);
   assert.equal(await page.evaluate(() => new Set([...document.querySelectorAll<HTMLElement>('[data-post-id]')].map(n => n.dataset.postId)).size),28);
   await page.goto(new URL('/posts/p29',url).href); assert.equal(await page.locator('[data-slide]').count(),2); assert.equal(await page.locator('video[autoplay]').count(),0);
+  await page.locator('[data-caption-more]').waitFor({ state: 'visible' });
+  await page.locator('[data-caption-more]').click();
+  assert.ok((await page.locator('[data-caption-text]').textContent())?.includes('Caption line 12'));
+  await page.goto(new URL('/posts/p28',url).href);
+  assert.equal(await page.locator('[data-caption-more]').isVisible(),false);
   await page.goto(url.href); await page.setViewportSize({ width: 390,height: 844 }); await page.screenshot({ path: 'test-results/mobile.png',fullPage: true });
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth),false);
+  await page.locator('[data-post-id="p29"]').click();
+  await page.locator('#post-content [data-caption-more]').waitFor({ state: 'visible' });
+  const mobileDialog = await page.locator('#post-dialog').boundingBox();
+  assert.ok(mobileDialog && mobileDialog.y >= 23 && mobileDialog.y + mobileDialog.height <= 821);
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth),false);
+  await page.locator('#post-close').scrollIntoViewIfNeeded();
+  await page.screenshot({ path: 'test-results/mobile-post.png' });
+  await page.locator('#post-close').click();
+  await page.waitForFunction(() => !document.querySelector<HTMLDialogElement>('#post-dialog')!.open);
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await toggle.click();
   assert.equal(await page.locator('#archive-hero').evaluate(el => el.getBoundingClientRect().height),0);

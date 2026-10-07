@@ -11,5 +11,5 @@ if (!post) Astro.response.status = failed ? 503 : 404;
 <Layout title={post ? `@${post.creator || 'Instagram'} — Unrot` : 'Post unavailable — Unrot'}>
   <a href="/" class="my-8 inline-flex items-center gap-2 text-sm text-stone-500"><ArrowLeft size={16} /> Back to the archive</a>
   {post ? <article class="overflow-hidden rounded-3xl border border-stone-200"><PostView post={post} /></article> : <section class="rounded-2xl border border-dashed border-stone-300 px-6 py-16 text-center"><h1 class="font-serif text-3xl">{failed ? 'A moment, please.' : 'This discovery is unavailable.'}</h1><p class="mt-3 text-sm text-stone-500">{failed ? 'The archive could not be loaded.' : 'It may have been removed from the public collection.'}</p>{failed && <a href={Astro.url.pathname} class="button-secondary mt-6">Try again</a>}</section>}
-  <script>import { mountCarousels } from '../../lib/dom'; mountCarousels(document);</script>
+  <script>import { mountCarousels, mountCaptions } from '../../lib/dom'; mountCarousels(document); mountCaptions(document);</script>
 </Layout>

@@ -13,11 +13,11 @@ export function tagsView(tags: Tag[], links = false) {
   }
   return row;
 }
-function feedIcon(kind: 'video' | 'image' | 'layers') {
+function feedIcon(kind: 'video' | 'image' | 'layers' | 'user' | 'link' | 'close', size = 14) {
   const ns = 'http://www.w3.org/2000/svg';
   const svg = document.createElementNS(ns,'svg');
-  for (const [key,value] of Object.entries({ width: '14',height: '14',viewBox: '0 0 24 24',fill: 'none',stroke: 'currentColor','stroke-width': '2','stroke-linecap': 'round','stroke-linejoin': 'round','aria-hidden': 'true' })) svg.setAttribute(key,value);
-  const paths = kind === 'video' ? ['m6 3 14 9-14 9V3Z'] : kind === 'image' ? ['M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z','m21 15-5-5L5 21','M9 8h.01'] : ['m12 3 10 5-10 5L2 8l10-5Z','m2 12 10 5 10-5','m2 16 10 5 10-5'];
+  for (const [key,value] of Object.entries({ width: String(size),height: String(size),viewBox: '0 0 24 24',fill: 'none',stroke: 'currentColor','stroke-width': '2','stroke-linecap': 'round','stroke-linejoin': 'round','aria-hidden': 'true' })) svg.setAttribute(key,value);
+  const paths = kind === 'user' ? ['M20 21v-2a7 7 0 0 0-14 0v2','M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z'] : kind === 'link' ? ['M10 13a5 5 0 0 0 7 .5l3-3a5 5 0 0 0-7-7l-2 2','M14 11a5 5 0 0 0-7-.5l-3 3a5 5 0 0 0 7 7l2-2'] : kind === 'close' ? ['m6 6 12 12','M18 6 6 18'] : kind === 'video' ? ['m6 3 14 9-14 9V3Z'] : kind === 'image' ? ['M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z','m21 15-5-5L5 21','M9 8h.01'] : ['m12 3 10 5-10 5L2 8l10-5Z','m2 12 10 5 10-5','m2 16 10 5 10-5'];
   for (const d of paths) { const path = document.createElementNS(ns,'path'); path.setAttribute('d',d); svg.append(path); }
   return svg;
 }
@@ -45,7 +45,7 @@ export function card(post: Post) {
   visual.append(overlay);
   link.append(visual); return link;
 }
-export function postView(post: Post, notesHtml: string, urlFor = mediaUrl) {
+export function postView(post: Post, notesHtml: string, urlFor = mediaUrl, onClose?: () => void) {
   const root = element('div','grid md:grid-cols-5'); root.dataset.carousel = '';
   const media = element('section','relative overflow-hidden bg-stone-950 md:col-span-3'); media.setAttribute('aria-label','Archived media');
   post.assets.forEach((a,index) => {
@@ -64,19 +64,39 @@ export function postView(post: Post, notesHtml: string, urlFor = mediaUrl) {
     const next = element('button','rounded-full bg-stone-50 px-3 py-2 text-stone-800','→'); next.dataset.next = ''; next.setAttribute('aria-label','Next media');
     controls.append(previous,counter,next); media.append(controls);
   }
-  const detail = element('section','space-y-6 p-6 sm:p-8 md:col-span-2');
-  detail.append(element('p','text-xs uppercase tracking-widest text-stone-500','Kept from Instagram'));
-  if (post.creator) {
-    const creator = element('a','block text-lg font-semibold',`@${post.creator} ↗`); creator.href = `https://www.instagram.com/${encodeURIComponent(post.creator)}/`; creator.target = '_blank'; creator.rel = 'noopener noreferrer'; detail.append(creator);
+  const detail = element('section','post-detail md:col-span-2');
+  const header = element('div','post-author-row');
+  const author = element('div','min-w-0');
+  const heading = element('h2','post-author',post.creator ? `@${post.creator}` : 'Instagram creator');
+  if (onClose) heading.id = 'post-dialog-title';
+  author.append(heading);
+  if (post.source_date) {
+    const date = element('time','mt-1 block text-xs text-stone-500',new Date(post.source_date).toLocaleDateString('en',{ dateStyle: 'long',timeZone: 'UTC' }));
+    date.dateTime = post.source_date; author.append(date);
   }
-  if (post.source_date) detail.append(element('p','text-xs text-stone-500',new Date(post.source_date).toLocaleDateString('en',{ dateStyle: 'long',timeZone: 'UTC' })));
-  detail.append(tagsView(post.tags,true));
-  if (post.notes) { const notes = element('div','notes'); notes.innerHTML = notesHtml; detail.append(notes); }
+  const actions = element('div','post-actions');
+  const action = (href: string, label: string, icon: 'user' | 'image' | 'link', external = false) => {
+    const link = element('a','post-icon'); link.href = href; link.setAttribute('aria-label',label); link.title = label;
+    if (external) { link.target = '_blank'; link.rel = 'noopener noreferrer'; }
+    link.append(feedIcon(icon,18)); actions.append(link);
+  };
+  if (post.creator) action(`https://www.instagram.com/${encodeURIComponent(post.creator)}/`,'View author profile','user',true);
+  action(post.source_url,'View original post','image',true);
+  action(`/posts/${post.id}`,'Post permalink','link');
+  if (onClose) {
+    const close = element('button','post-icon post-close'); close.type = 'button'; close.id = 'post-close'; close.setAttribute('aria-label','Close post'); close.title = 'Close post';
+    close.append(feedIcon('close',18)); close.onclick = onClose; actions.append(close);
+  }
+  header.append(author,actions); detail.append(header);
+  if (post.notes) { const notes = element('div','notes post-note'); notes.setAttribute('aria-label','My notes'); notes.innerHTML = notesHtml; detail.append(notes); }
   if (post.caption) {
-    const caption = element('details','border-t border-stone-200 pt-4'); caption.append(element('summary','cursor-pointer text-sm text-stone-600','Original caption'),element('p','mt-3 whitespace-pre-wrap text-sm leading-relaxed text-stone-600',post.caption)); detail.append(caption);
+    const caption = element('p','post-caption'); caption.dataset.caption = '';
+    const text = element('span','',post.caption); text.dataset.captionText = '';
+    const more = element('button','caption-more','Show more...'); more.type = 'button'; more.dataset.captionMore = ''; more.setAttribute('aria-expanded','false'); more.hidden = true;
+    caption.append(text,more); detail.append(caption);
   }
-  const original = element('a','button-secondary text-xs','Original post ↗'); original.href = post.source_url; original.target = '_blank'; original.rel = 'noopener noreferrer'; detail.append(original);
-  root.append(media,detail); mountCarousels(root); return root;
+  if (post.tags.length) detail.append(tagsView(post.tags,true));
+  root.append(media,detail); mountCarousels(root); requestAnimationFrame(() => mountCaptions(root)); return root;
 }
 export function pauseMedia(root: ParentNode) { root.querySelectorAll('video').forEach(video => video.pause()); }
 export function mountCarousels(root: ParentNode) {
@@ -101,3 +121,33 @@ export function mountCarousels(root: ParentNode) {
     });
   }
 }
+
+const captions = new WeakMap<HTMLElement,{ full: string; expanded: boolean }>();
+export function mountCaptions(root: ParentNode) {
+  for (const caption of root.querySelectorAll<HTMLElement>('[data-caption]')) {
+    const text = caption.querySelector<HTMLElement>('[data-caption-text]')!;
+    const more = caption.querySelector<HTMLButtonElement>('[data-caption-more]')!;
+    let state = captions.get(caption);
+    if (!state) {
+      state = { full: text.textContent ?? '',expanded: false }; captions.set(caption,state);
+      more.onclick = () => {
+        state!.expanded = true; text.textContent = state!.full; more.hidden = true; more.setAttribute('aria-expanded','true');
+      };
+    }
+    if (state.expanded || !caption.clientWidth) continue;
+    text.textContent = state.full; more.hidden = true;
+    const maxHeight = parseFloat(getComputedStyle(caption).lineHeight) * 6 + 1;
+    if (caption.getBoundingClientRect().height <= maxHeight) continue;
+    more.hidden = false;
+    // Measure with the inline button included so it fits on the sixth line.
+    const characters = Array.from(state.full);
+    let low = 0, high = characters.length;
+    while (low < high) {
+      const middle = Math.ceil((low + high) / 2);
+      text.textContent = characters.slice(0,middle).join('').trimEnd() + '… ';
+      if (caption.getBoundingClientRect().height <= maxHeight) low = middle; else high = middle - 1;
+    }
+    text.textContent = characters.slice(0,low).join('').trimEnd() + '… ';
+  }
+}
+window.addEventListener('resize',() => mountCaptions(document));
