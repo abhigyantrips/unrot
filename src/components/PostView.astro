@@ -20,16 +20,16 @@ const { post } = Astro.props;
     <div class="post-author-row">
       <div class="min-w-0">
         <h2 class="post-author">{post.creator ? `@${post.creator}` : 'Instagram creator'}</h2>
-        {post.source_date && <time datetime={post.source_date} class="mt-1 block text-xs text-stone-500">{new Date(post.source_date).toLocaleDateString('en',{ dateStyle: 'long',timeZone: 'UTC' })}</time>}
       </div>
       <div class="post-actions">
         {post.creator && <a href={`https://www.instagram.com/${encodeURIComponent(post.creator)}/`} target="_blank" rel="noopener noreferrer" class="post-icon" aria-label="View author profile" title="View author profile"><UserRound size={18} /></a>}
         <a href={post.source_url} target="_blank" rel="noopener noreferrer" class="post-icon" aria-label="View original post" title="View original post"><Image size={18} /></a>
         <a href={`/posts/${post.id}`} class="post-icon" aria-label="Post permalink" title="Post permalink"><Link size={18} /></a>
       </div>
+      {post.source_date && <time datetime={post.source_date} class="col-span-2 block text-xs text-stone-500">{new Date(post.source_date).toLocaleDateString('en',{ dateStyle: 'long',timeZone: 'UTC' })}</time>}
     </div>
-    {post.notes && <div class="notes post-note" aria-label="My notes" set:html={markdown(post.notes)} />}
-    {post.caption && <p class="post-caption" data-caption><span data-caption-text>{post.caption}</span><button type="button" class="caption-more" data-caption-more aria-expanded="false" hidden>Show more...</button></p>}
-    {post.tags.length > 0 && <div class="flex flex-wrap gap-2">{post.tags.map(tag => <a href={`/?tag=${tag.id}`} class:list={['tag',tagClass[tag.color]]}>{tag.name}</a>)}</div>}
+    {post.notes && <div class="post-note" aria-label="Curator's note"><h3 class="post-section-label">Curator's note</h3><div class="notes" set:html={markdown(post.notes)} /></div>}
+    {post.caption && <div class="post-section"><h3 class="post-section-label">Original caption</h3><p class="post-caption" data-caption><span data-caption-text>{post.caption}</span><button type="button" class="caption-more" data-caption-more aria-expanded="false" hidden>Show more...</button></p></div>}
+    {post.tags.length > 0 && <div class="post-section"><h3 class="post-section-label">Tags</h3><div class="flex flex-wrap gap-2">{post.tags.map(tag => <a href={`/?tag=${tag.id}`} class:list={['tag',tagClass[tag.color]]}>{tag.name}</a>)}</div></div>}
   </section>
 </div>

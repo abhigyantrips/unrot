@@ -70,8 +70,22 @@ try {
   assert.equal(await toggle.textContent(),'Hide Header');
   assert.equal(await toggle.getAttribute('aria-expanded'),'true');
   await mkdir('test-results',{ recursive: true }); await page.screenshot({ path: 'test-results/desktop.png',fullPage: true });
+  let releasePost!: () => void;
+  const postGate = new Promise<void>(resolve => { releasePost = resolve; });
+  await page.route('**/api/posts/p29',async route => { await postGate; await route.continue(); });
   const first = page.locator('[data-post-id="p29"]'); await first.click();
-  await page.locator('#post-content [data-carousel]').waitFor(); assert.ok(page.url().endsWith('/posts/p29'));
+  const preview = page.locator('#post-content [data-post-loading]');
+  await preview.waitFor();
+  assert.equal(await preview.locator('img').evaluate((img: HTMLImageElement) => img.src),await first.locator('img').evaluate((img: HTMLImageElement) => img.src));
+  assert.equal(await preview.locator('.post-author').textContent(),'@fixture_creator');
+  assert.equal(await preview.locator('[aria-label="Close post"]').count(),1);
+  const loadingBounds = await page.locator('#post-dialog').boundingBox();
+  assert.ok(loadingBounds && loadingBounds.width > 800 && loadingBounds.height > 600);
+  await page.screenshot({ path: 'test-results/desktop-post-loading.png' });
+  releasePost();
+
+  await page.locator('#post-content [data-carousel]:not([data-post-loading])').waitFor(); assert.ok(page.url().endsWith('/posts/p29'));
+  await page.unroute('**/api/posts/p29');
   assert.ok(await page.locator('#post-content .tag').count() > 0);
   assert.equal(await page.locator('#post-dialog').evaluate((d: HTMLDialogElement) => d.open),true);
   assert.equal(await page.locator('#post-content script').count(),0);
@@ -83,7 +97,7 @@ try {
   assert.equal(await page.locator('#post-content [aria-label="View original post"]').getAttribute('href'),'https://www.instagram.com/p/FIXTURE/');
   assert.equal(await page.locator('#post-content [aria-label="Post permalink"]').getAttribute('href'),'/posts/p29');
   assert.equal(await page.locator('#post-close').evaluate(el => Boolean(el.closest('.post-detail'))),true);
-  assert.equal(await page.locator('#post-content .post-detail').evaluate(el => [...el.children].map(n => n.className).join('|')),'post-author-row|notes post-note|post-caption|flex flex-wrap gap-2');
+  assert.equal(await page.locator('#post-content .post-detail').evaluate(el => [...el.children].map(n => n.className).join('|')),'post-author-row|post-note|post-section|post-section');
   const assertMediaFits = async () => {
     const dimensions = await page.locator('#post-content [data-slide]:not([hidden]) .media-slide').evaluate((el: HTMLImageElement | HTMLVideoElement) => {
       const pane = el.closest('section')!.getBoundingClientRect();
@@ -97,6 +111,7 @@ try {
   await assertMediaFits();
   const dialogBounds = await page.locator('#post-dialog').boundingBox();
   assert.ok(dialogBounds && dialogBounds.y >= 23 && dialogBounds.y + dialogBounds.height <= 877);
+  assert.ok(Math.abs(dialogBounds.width - loadingBounds.width) < 1 && Math.abs(dialogBounds.height - loadingBounds.height) < 1);
   const caption = page.locator('#post-content [data-caption]');
   await caption.locator('[data-caption-more]').waitFor({ state: 'visible' });
   assert.ok(await caption.evaluate(el => el.getBoundingClientRect().height <= parseFloat(getComputedStyle(el).lineHeight) * 6 + 1));
@@ -111,7 +126,7 @@ try {
   await page.locator('#post-content [data-previous]').click(); assert.equal(await player.evaluate((v: HTMLVideoElement) => v.paused),true);
   await page.keyboard.press('Escape'); await page.waitForFunction(() => !document.querySelector<HTMLDialogElement>('#post-dialog')!.open);
   assert.ok(page.url().endsWith('/')); assert.equal(await page.evaluate(() => (document.activeElement as HTMLElement).dataset.postId),'p29');
-  await page.goForward(); await page.locator('#post-content [data-carousel]').waitFor(); await page.locator('#post-close').click(); await page.waitForFunction(() => !document.querySelector<HTMLDialogElement>('#post-dialog')!.open);
+  await page.goForward(); await page.locator('#post-content [data-carousel]:not([data-post-loading])').waitFor(); await page.locator('#post-close').click(); await page.waitForFunction(() => !document.querySelector<HTMLDialogElement>('#post-dialog')!.open);
   for (const id of ['p28','p27']) {
     await page.locator(`[data-post-id="${id}"]`).click();
     await page.locator('#post-content img').evaluate(async (img: HTMLImageElement) => img.decode());

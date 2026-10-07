@@ -45,6 +45,23 @@ export function card(post: Post) {
   visual.append(overlay);
   link.append(visual); return link;
 }
+export function postLoading(preview: HTMLImageElement | null, creator: string, onClose: () => void) {
+  const root = element('div','grid md:grid-cols-5'); root.dataset.carousel = ''; root.dataset.postLoading = '';
+  const width = Number(preview?.getAttribute('width')) || preview?.naturalWidth || 1;
+  const height = Number(preview?.getAttribute('height')) || preview?.naturalHeight || 1;
+  root.style.setProperty('--media-ratio',String(width / height));
+  const media = element('section','relative overflow-hidden bg-stone-950 md:col-span-3'); media.setAttribute('aria-label','Archived media');
+  if (preview) {
+    const image = element('img','media-slide'); image.src = preview.currentSrc || preview.src; image.alt = preview.alt;
+    image.width = width; image.height = height; media.append(image);
+  }
+  const detail = element('section','post-detail md:col-span-2');
+  const header = element('div','post-author-row');
+  const close = element('button','post-icon post-close'); close.type = 'button'; close.setAttribute('aria-label','Close post'); close.onclick = onClose; close.append(feedIcon('close',18));
+  header.append(element('h2','post-author',creator || 'Instagram creator'),close);
+  const status = element('p','text-sm text-stone-500','Opening your discovery…'); status.setAttribute('role','status');
+  detail.append(header,status); root.append(media,detail); return root;
+}
 export function postView(post: Post, notesHtml: string, urlFor = mediaUrl, onClose?: () => void) {
   const root = element('div','grid md:grid-cols-5'); root.dataset.carousel = '';
   const media = element('section','relative overflow-hidden bg-stone-950 md:col-span-3'); media.setAttribute('aria-label','Archived media');
@@ -70,9 +87,10 @@ export function postView(post: Post, notesHtml: string, urlFor = mediaUrl, onClo
   const heading = element('h2','post-author',post.creator ? `@${post.creator}` : 'Instagram creator');
   if (onClose) heading.id = 'post-dialog-title';
   author.append(heading);
+  let date: HTMLTimeElement | undefined;
   if (post.source_date) {
-    const date = element('time','mt-1 block text-xs text-stone-500',new Date(post.source_date).toLocaleDateString('en',{ dateStyle: 'long',timeZone: 'UTC' }));
-    date.dateTime = post.source_date; author.append(date);
+    date = element('time','col-span-2 block text-xs text-stone-500',new Date(post.source_date).toLocaleDateString('en',{ dateStyle: 'long',timeZone: 'UTC' }));
+    date.dateTime = post.source_date;
   }
   const actions = element('div','post-actions');
   const action = (href: string, label: string, icon: 'user' | 'image' | 'link', external = false) => {
@@ -87,15 +105,22 @@ export function postView(post: Post, notesHtml: string, urlFor = mediaUrl, onClo
     const close = element('button','post-icon post-close'); close.type = 'button'; close.id = 'post-close'; close.setAttribute('aria-label','Close post'); close.title = 'Close post';
     close.append(feedIcon('close',18)); close.onclick = onClose; actions.append(close);
   }
-  header.append(author,actions); detail.append(header);
-  if (post.notes) { const notes = element('div','notes post-note'); notes.setAttribute('aria-label','My notes'); notes.innerHTML = notesHtml; detail.append(notes); }
+  header.append(author,actions); if (date) header.append(date); detail.append(header);
+  if (post.notes) {
+    const note = element('div','post-note'); note.setAttribute('aria-label',"Curator's note");
+    const notes = element('div','notes'); notes.innerHTML = notesHtml;
+    note.append(element('h3','post-section-label',"Curator's note"),notes); detail.append(note);
+  }
   if (post.caption) {
     const caption = element('p','post-caption'); caption.dataset.caption = '';
     const text = element('span','',post.caption); text.dataset.captionText = '';
     const more = element('button','caption-more','Show more...'); more.type = 'button'; more.dataset.captionMore = ''; more.setAttribute('aria-expanded','false'); more.hidden = true;
-    caption.append(text,more); detail.append(caption);
+    caption.append(text,more);
+    const section = element('div','post-section'); section.append(element('h3','post-section-label','Original caption'),caption); detail.append(section);
   }
-  if (post.tags.length) detail.append(tagsView(post.tags,true));
+  if (post.tags.length) {
+    const section = element('div','post-section'); section.append(element('h3','post-section-label','Tags'),tagsView(post.tags,true)); detail.append(section);
+  }
   root.append(media,detail); mountCarousels(root); requestAnimationFrame(() => mountCaptions(root)); return root;
 }
 export function pauseMedia(root: ParentNode) { root.querySelectorAll('video').forEach(video => video.pause()); }

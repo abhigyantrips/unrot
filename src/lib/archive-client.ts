@@ -1,4 +1,4 @@
-import { card,element,pauseMedia,postView } from './dom';
+import { card,element,pauseMedia,postView,postLoading } from './dom';
 import { tagClass,type Tag,type Post } from './types';
 const grid = document.querySelector<HTMLElement>('#archive-grid')!;
 const more = document.querySelector<HTMLButtonElement>('#load-more')!;
@@ -74,9 +74,8 @@ async function showPost(id: string, push: boolean) {
   postAbort?.abort(); postAbort = new AbortController();
   if (!dialog.open) { scrollPosition = window.scrollY; document.body.style.overflow = 'hidden'; dialog.showModal(); }
   dialog.removeAttribute('aria-labelledby');
-  const loading = element('div','space-y-4 p-8');
-  const close = element('button','button-secondary','Close'); close.type = 'button'; close.onclick = closePost;
-  loading.append(element('p','text-sm text-stone-500','Opening your discovery…'),close);
+  const source = [...grid.querySelectorAll<HTMLElement>('[data-post-id]')].find(card => card.dataset.postId === id);
+  const loading = postLoading(source?.querySelector('img') ?? null,source?.querySelector('.feed-author')?.textContent ?? '',closePost);
   content.replaceChildren(loading);
   if (push) history.pushState({ dialog: true,id,gridUrl,scrollPosition },'',`/posts/${id}`);
   try {
@@ -85,8 +84,9 @@ async function showPost(id: string, push: boolean) {
     dialog.setAttribute('aria-labelledby','post-dialog-title');
   } catch (error) {
     if ((error as Error).name === 'AbortError') return;
-    const area = element('div','space-y-4 p-8'); area.append(element('p','text-sm',(error as Error).message));
-    const again = element('button','button-secondary','Try again'); again.onclick = () => void showPost(id,false); area.append(again,close); content.replaceChildren(area);
+    const detail = loading.querySelector('.post-detail')!;
+    detail.querySelector('[role="status"]')!.textContent = (error as Error).message;
+    const again = element('button','button-secondary','Try again'); again.onclick = () => void showPost(id,false); detail.append(again);
   }
 }
 function hidePost() {
