@@ -13,18 +13,23 @@ try {
   posts = batch.posts; cursor = batch.cursor; tags = available;
 } catch (e) { error = e instanceof QueryError ? e.message : 'The archive is taking a moment. Please try again.'; Astro.response.status = e instanceof QueryError ? 400 : 503; }
 ---
-<Layout>
-  <section class="flex flex-col justify-between gap-6 pb-10 pt-12 sm:flex-row sm:items-end sm:pb-12 sm:pt-16">
-    <div class="max-w-xl">
-      <p class="mb-4 flex items-center gap-2 text-xs font-medium uppercase tracking-widest text-amber-800"><span class="h-1.5 w-1.5 rounded-full bg-amber-700" /> A little less brain rot</p>
-      <h1 class="font-serif text-5xl leading-tight tracking-tight sm:text-6xl">Worth keeping.</h1>
-      <p class="mt-4 max-w-md text-base leading-relaxed text-stone-500">Ideas, places, and small discoveries.<br class="hidden sm:block" /> Saved from the scroll. Given a place to stay.</p>
+<Layout archive>
+  <header class="archive-header">
+    <div id="archive-hero" class="archive-hero">
+      <div class="hero-overflow">
+        <div class="hero-copy">
+          <h1 class="font-serif text-3xl leading-tight tracking-tight sm:text-5xl">a curated feed of reels and such.</h1>
+          <p class="mx-auto mt-5 max-w-2xl text-sm leading-relaxed text-stone-500 sm:text-base">Whenever <a href="https://abhi.now" class="text-stone-700 underline decoration-stone-300 underline-offset-4 transition hover:text-amber-800 hover:decoration-amber-800" target="_blank" rel="noopener noreferrer">Abhigyan</a> re-installs Instagram, he loves a lot of reels and saves them for later. but to access them he has to go to Instagram again. that's not great, so here's his archive tagged and made public.</p>
+        </div>
+      </div>
     </div>
-    <div class="flex items-center gap-2 pb-1 text-xs text-stone-500"><Bookmark size={15} /><span id="collection-label">{selected.length ? `${selected.length} tags selected · ${mode} matching` : 'The whole collection'}</span></div>
-  </section>
-  <div class="mb-6 flex items-center justify-between gap-4 border-t border-stone-200 pt-5">
+    <div class="hero-divider">
+      <button id="header-toggle" type="button" aria-controls="archive-hero" aria-expanded="true" class="header-toggle">Hide Header</button>
+    </div>
+  </header>
+  <div class="mb-6 flex flex-wrap items-center justify-between gap-3 pt-5">
     <p class="text-xs font-medium uppercase tracking-widest text-stone-500">The archive <span id="loaded-count" class="ml-2 text-stone-400">{posts.length ? String(posts.length).padStart(2,'0') : ''}</span></p>
-    <span class="text-xs text-stone-500">Newest additions first</span>
+    <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-stone-500"><span id="collection-label">{selected.length ? `${selected.length} tags selected · ${mode} matching` : 'The whole collection'}</span><span>Newest additions first</span></div>
   </div>
   <div id="active-filters" class="mb-5 flex flex-wrap gap-2" hidden={!selected.length}>{tags.filter(t => selected.includes(t.id)).map(tag => <span class:list={['tag',tagClass[tag.color]]}>{tag.name}</span>)}</div>
   <div id="archive-grid" class="grid grid-cols-1 gap-4 sm:auto-rows-64 sm:grid-cols-3 lg:grid-cols-4" data-cursor={cursor ?? ''}>{posts.map((post,index) => <Card post={post} index={index} />)}</div>
@@ -51,4 +56,43 @@ try {
   </dialog>
   <dialog id="post-dialog" aria-labelledby="post-dialog-title"><div class="sticky top-0 z-10 flex items-center justify-between border-b border-stone-200 bg-stone-50 px-5 py-3"><h2 id="post-dialog-title" class="text-xs text-stone-500">A saved discovery</h2><div class="flex items-center gap-4"><a id="post-permalink" class="text-xs underline underline-offset-4">Permalink</a><button id="post-close" class="rounded-full p-2 hover:bg-stone-200" aria-label="Close post"><X size={20} /></button></div></div><div id="post-content" class="min-h-64"></div></dialog>
   <script>import '../lib/archive-client';</script>
+  <script>
+    const toggle = document.querySelector<HTMLButtonElement>('#header-toggle')!;
+    const hero = document.querySelector<HTMLElement>('#archive-hero')!;
+    toggle.addEventListener('click', () => {
+      const collapsed = toggle.getAttribute('aria-expanded') === 'true';
+      hero.classList.toggle('is-collapsed', collapsed);
+      hero.inert = collapsed;
+      toggle.setAttribute('aria-expanded', String(!collapsed));
+      toggle.textContent = collapsed ? 'unrot.' : 'Hide Header';
+      toggle.setAttribute('aria-label', collapsed ? 'unrot. Show header' : 'Hide Header');
+    });
+  </script>
 </Layout>
+
+<style>
+  .archive-hero {
+    display: grid;
+    grid-template-rows: 1fr;
+    opacity: 1;
+    transition: grid-template-rows 420ms cubic-bezier(0.22, 1, 0.36, 1), opacity 280ms ease;
+  }
+  .archive-hero.is-collapsed { grid-template-rows: 0fr; opacity: 0; }
+  .hero-overflow { min-height: 0; overflow: hidden; }
+  .hero-copy { padding: clamp(3rem, 7vw, 6rem) 0 clamp(2.5rem, 5vw, 4rem); text-align: center; }
+  .hero-divider { display: flex; align-items: center; gap: 0.75rem; }
+  .hero-divider::before, .hero-divider::after { content: ''; height: 1px; flex: 1; background: var(--color-stone-200); }
+  .header-toggle {
+    flex: none;
+    min-width: 7.5rem;
+    padding: 0.625rem 1.25rem;
+    border-radius: 999px;
+    color: var(--color-stone-500);
+    font-size: 0.75rem;
+    transition: background-color 160ms ease, color 160ms ease;
+  }
+  .header-toggle:hover { background: var(--color-stone-200); color: var(--color-stone-800); }
+  @media (prefers-reduced-motion: reduce) {
+    .archive-hero, .header-toggle { transition: none; }
+  }
+</style>
