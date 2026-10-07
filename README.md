@@ -45,15 +45,17 @@ Dry run lists pending post additions/edits/removals and tag changes without prod
 
 **Content publishing does not deploy code.** Dynamic D1 queries show new publications immediately. Unpublishing hides a post and its media routes; local copies and R2 objects remain archived.
 
-`wrangler.jsonc` configures D1 `unrot`, R2 `unrot-media`, and `unrot.abhi.now`. Development explicitly disables remote bindings. Only `wrangler.publish.jsonc` enables production storage from Node. Wrangler stores authentication outside this project.
+`wrangler.local.jsonc` supplies Astro development and local Node scripts with D1/R2 bindings. Development explicitly disables remote bindings and persists data in `.wrangler/state/v3`.
 
-For another account, update the account ID, D1 ID, bucket names, and domain in both configs, then initialize and deploy:
+`wrangler.remote.jsonc` configures the production Worker at `unrot.abhi.now`, D1 `unrot`, and R2 `unrot-media`. Astro production builds use this config, and `pnpm deploy` deploys the generated `dist/server/wrangler.json`. Builds disable remote binding access, so building alone never reads or writes production storage. Publishing and `cloudflare:check` explicitly select this config with remote bindings enabled. Wrangler stores authentication outside this project.
+
+For another account, update the account ID, D1 ID, and bucket names in both configs, and the production domain in the remote config, then initialize and deploy:
 
 ```sh
 pnpm wrangler login
-pnpm wrangler d1 create unrot
-pnpm wrangler r2 bucket create unrot-media
-pnpm wrangler d1 migrations apply unrot --remote
+pnpm wrangler d1 create unrot --config wrangler.remote.jsonc
+pnpm wrangler r2 bucket create unrot-media --config wrangler.remote.jsonc
+pnpm wrangler d1 migrations apply unrot --remote --config wrangler.remote.jsonc
 pnpm cloudflare:check
 pnpm deploy
 ```
@@ -107,7 +109,7 @@ pnpm test:cloud
 
 `pnpm test` uses isolated local Cloudflare D1/R2 instances and media fixtures. Coverage includes pagination/deduplication, interruption/session expiry, edits/ignored records, Cobalt variants, real Sharp/FFmpeg processing of images/reels/mixed carousels, fallback/stale URLs, tags/revisions, publishing failures/retries/idempotency, filters/cursors, media conditions/ranges, origin checks, and backup restoration.
 
-`pnpm test:browser` requires a current production build. It serves the build with isolated D1/R2 fixtures and checks desktop/mobile layout, Any/All filters and URL restoration, pagination, history/focus, sanitization, carousel playback/seeking, permalinks, and production 404s. Screenshots go to gitignored `test-results/`. Add `--keep-open` to keep the fixture preview available for inspection.
+`pnpm test:browser` requires a current production build. It loads the compiled code into a separate harness with temporary storage and explicitly local D1/R2 fixture bindings. It does not inherit production account/resource configuration from the build. Checks cover desktop/mobile layout, Any/All filters and URL restoration, pagination, history/focus, sanitization, carousel playback/seeking, permalinks, and production 404s. Screenshots go to gitignored `test-results/`. Add `--keep-open` to keep the fixture preview available for inspection.
 
 `pnpm test:cloud` creates temporary remote D1/R2 resources in the authenticated Wrangler account, tests upload interruption, metadata failure, retry, repeat publishing, editing, and unpublishing, then empties/deletes those resources. It never writes fixtures to production.
 

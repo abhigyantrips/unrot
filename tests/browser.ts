@@ -4,15 +4,23 @@ import { createHash } from 'node:crypto';
 import { promisify } from 'node:util';
 import { execFile } from 'node:child_process';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join,resolve } from 'node:path';
 import sharp from 'sharp';
 import { chromium } from 'playwright';
 import { createTestHarness } from 'wrangler';
 import { migrate } from '../local/platform';
 import type { Bindings,Asset } from '../src/lib/types';
-const server = createTestHarness({ workers: [{ configPath: 'dist/server/wrangler.json' }] });
-const browser = await chromium.launch({ headless: true });
 const temporary = await mkdtemp(join(tmpdir(),'unrot-browser-'));
+const built = JSON.parse(await readFile('dist/server/wrangler.json','utf8'));
+// Load compiled code without inheriting the production account or remote bindings.
+const server = createTestHarness({ root: temporary,workers: [{ config: {
+  name: 'unrot-browser',main: resolve('dist/server',built.main),no_bundle: true,rules: built.rules,
+  compatibility_date: built.compatibility_date,compatibility_flags: built.compatibility_flags,
+  assets: { directory: resolve('dist/server',built.assets.directory),binding: 'ASSETS' },
+  d1_databases: [{ binding: 'DB',database_name: 'unrot-browser',database_id: '00000000-0000-0000-0000-000000000000',remote: false }],
+  r2_buckets: [{ binding: 'MEDIA',bucket_name: 'unrot-browser-media',remote: false }],
+} }] });
+const browser = await chromium.launch({ headless: true });
 try {
   const { url } = await server.listen();
   const env = await server.getWorker<Bindings>().getEnv();
@@ -42,6 +50,10 @@ try {
   const errors: string[] = []; page.on('pageerror',error => errors.push(error.message));
   await page.goto(url.href); await page.locator('[data-post-id]').first().waitFor();
   assert.equal(await page.locator('[data-post-id]').count(),24);
+  assert.equal(await page.locator('#loaded-count, #collection-label, #active-filters').count(),0);
+  assert.equal(await page.locator('#archive-grid .tag').count(),0);
+  assert.equal(await page.locator('#archive-grid .feed-author').count(),24);
+  assert.equal(await page.locator('[data-post-id]').first().evaluate(el => el.children.length),1);
   assert.equal(await page.locator('h1').textContent(),'a curated feed of reels and such.');
   assert.equal(await page.locator('#archive-hero a').getAttribute('href'),'https://abhi.now');
   const gridBounds = await page.locator('#archive-grid').boundingBox();
@@ -60,6 +72,7 @@ try {
   await mkdir('test-results',{ recursive: true }); await page.screenshot({ path: 'test-results/desktop.png',fullPage: true });
   const first = page.locator('[data-post-id="p29"]'); await first.click();
   await page.locator('#post-content [data-carousel]').waitFor(); assert.ok(page.url().endsWith('/posts/p29'));
+  assert.ok(await page.locator('#post-content .tag').count() > 0);
   assert.equal(await page.locator('#post-dialog').evaluate((d: HTMLDialogElement) => d.open),true);
   assert.equal(await page.locator('#post-content script').count(),0);
   await page.locator('#post-content [data-next]').click();
@@ -76,6 +89,8 @@ try {
   await page.locator('#refine').click(); assert.equal(await page.locator('#filter-tags input:checked').count(),2);
   await page.locator('#clear-filters').click(); await page.locator('#filter-form button[type="submit"]').click(); await page.waitForFunction(() => document.querySelectorAll('[data-post-id]').length >= 24);
   await page.locator('#load-more').click(); await page.waitForFunction(() => document.querySelectorAll('[data-post-id]').length === 28);
+  assert.equal(await page.locator('#archive-grid .tag').count(),0);
+  assert.equal(await page.locator('#archive-grid .feed-author').count(),28);
   assert.equal(await page.evaluate(() => new Set([...document.querySelectorAll<HTMLElement>('[data-post-id]')].map(n => n.dataset.postId)).size),28);
   await page.goto(new URL('/posts/p29',url).href); assert.equal(await page.locator('[data-slide]').count(),2); assert.equal(await page.locator('video[autoplay]').count(),0);
   await page.goto(url.href); await page.setViewportSize({ width: 390,height: 844 }); await page.screenshot({ path: 'test-results/mobile.png',fullPage: true });

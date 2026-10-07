@@ -1,4 +1,4 @@
-import { card,element,pauseMedia,postView,tagsView } from './dom';
+import { card,element,pauseMedia,postView } from './dom';
 import { tagClass,type Tag,type Post } from './types';
 const grid = document.querySelector<HTMLElement>('#archive-grid')!;
 const more = document.querySelector<HTMLButtonElement>('#load-more')!;
@@ -17,7 +17,6 @@ let scrollPosition = 0;
 let focusCard: HTMLElement | null = null;
 let busy = false, epoch = 0;
 let feedAbort: AbortController | undefined, postAbort: AbortController | undefined;
-let tagList: Tag[] = [];
 const ids = new Set([...grid.querySelectorAll<HTMLElement>('[data-post-id]')].map(a => a.dataset.postId));
 history.replaceState({ ...history.state,gridUrl },'',location.href);
 async function json<T>(url: string, signal?: AbortSignal): Promise<T> {
@@ -32,10 +31,7 @@ function updateFilters() {
   const selected = params.getAll('tag');
   form.querySelectorAll<HTMLInputElement>('[name="tag"]').forEach(input => input.checked = selected.includes(input.value));
   form.querySelectorAll<HTMLInputElement>('[name="match"]').forEach(input => input.checked = input.value === (params.get('match') ?? 'any'));
-  document.querySelector('#collection-label')!.textContent = selected.length ? `${selected.length} tags selected · ${params.get('match') ?? 'any'} matching` : 'The whole collection';
   const count = document.querySelector<HTMLElement>('#filter-count')!; count.hidden = !selected.length; count.textContent = String(selected.length);
-  const active = document.querySelector<HTMLElement>('#active-filters')!; active.hidden = !selected.length;
-  if (tagList.length) active.replaceChildren(...tagsView(tagList.filter(tag => selected.includes(tag.id))).childNodes);
 }
 async function load(reset = false) {
   if (busy && !reset) return;
@@ -54,7 +50,6 @@ async function load(reset = false) {
     title.textContent = params.getAll('tag').length ? 'Nothing here just yet.' : 'A place for good discoveries.';
     message.textContent = params.getAll('tag').length ? 'Try a different combination of tags, or explore the whole collection.' : 'The first saved finds are on their way. Come back for something worth returning to.';
     status.textContent = cursor ? '' : ids.size ? 'You’ve reached the end. Keep the good ones close.' : '';
-    document.querySelector('#loaded-count')!.textContent = ids.size ? String(ids.size).padStart(2,'0') : '';
   } catch (error) {
     if ((error as Error).name === 'AbortError' || current !== epoch) return;
     status.textContent = (error as Error).message;
@@ -64,7 +59,7 @@ async function load(reset = false) {
 }
 async function loadTags() {
   try {
-    const { tags } = await json<{ tags: Tag[] }>('/api/tags'); tagList = tags;
+    const { tags } = await json<{ tags: Tag[] }>('/api/tags');
     const target = document.querySelector('#filter-tags')!;
     target.replaceChildren();
     if (!tags.length) target.append(element('p','text-sm text-stone-500','Tags appear with the first published posts.'));

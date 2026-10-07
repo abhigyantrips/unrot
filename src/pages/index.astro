@@ -27,12 +27,7 @@ try {
       <button id="header-toggle" type="button" aria-controls="archive-hero" aria-expanded="true" class="header-toggle">Hide Header</button>
     </div>
   </header>
-  <div class="mb-6 flex flex-wrap items-center justify-between gap-3 pt-5">
-    <p class="text-xs font-medium uppercase tracking-widest text-stone-500">The archive <span id="loaded-count" class="ml-2 text-stone-400">{posts.length ? String(posts.length).padStart(2,'0') : ''}</span></p>
-    <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-stone-500"><span id="collection-label">{selected.length ? `${selected.length} tags selected · ${mode} matching` : 'The whole collection'}</span><span>Newest additions first</span></div>
-  </div>
-  <div id="active-filters" class="mb-5 flex flex-wrap gap-2" hidden={!selected.length}>{tags.filter(t => selected.includes(t.id)).map(tag => <span class:list={['tag',tagClass[tag.color]]}>{tag.name}</span>)}</div>
-  <div id="archive-grid" class="grid grid-cols-1 gap-4 sm:auto-rows-64 sm:grid-cols-3 lg:grid-cols-4" data-cursor={cursor ?? ''}>{posts.map((post,index) => <Card post={post} index={index} />)}</div>
+  <div id="archive-grid" class="mt-6 grid grid-cols-1 gap-4 sm:auto-rows-64 sm:grid-cols-3 lg:grid-cols-4" data-cursor={cursor ?? ''}>{posts.map((post,index) => <Card post={post} index={index} />)}</div>
   <section id="archive-state" hidden={posts.length > 0 && !error} class="rounded-2xl border border-dashed border-stone-300 px-6 py-16 text-center" role="status">
     <span class="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-amber-100 text-amber-800"><Bookmark size={24} /></span>
     <h2 id="state-title" class="font-serif text-2xl">{error ? 'A moment, please.' : selected.length ? 'Nothing here just yet.' : 'A place for good discoveries.'}</h2>

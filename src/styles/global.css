@@ -9,6 +9,9 @@
   input, textarea, select { @apply rounded-xl border border-stone-300 bg-white px-3 py-2; }
 }
 @layer components {
+  .feed-overlay { @apply absolute inset-x-0 top-0 flex items-center justify-between gap-2 p-3; }
+  .feed-author { @apply min-w-0 truncate rounded-full bg-stone-950/60 px-3 py-2 text-xs text-white backdrop-blur-sm; }
+  .feed-badge { @apply flex h-8 items-center justify-center rounded-full bg-stone-950/60 text-xs text-white backdrop-blur-sm; }
   .button { @apply inline-flex items-center justify-center gap-2 rounded-full bg-stone-800 px-5 py-3 text-sm font-medium text-stone-50 transition hover:bg-stone-700; }
   .button-secondary { @apply inline-flex items-center justify-center gap-2 rounded-full border border-stone-300 bg-stone-50 px-5 py-3 text-sm font-medium transition hover:bg-stone-200; }
   .tag { @apply inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium; }

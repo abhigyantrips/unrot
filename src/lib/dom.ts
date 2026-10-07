@@ -13,6 +13,14 @@ export function tagsView(tags: Tag[], links = false) {
   }
   return row;
 }
+function feedIcon(kind: 'video' | 'image' | 'layers') {
+  const ns = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(ns,'svg');
+  for (const [key,value] of Object.entries({ width: '14',height: '14',viewBox: '0 0 24 24',fill: 'none',stroke: 'currentColor','stroke-width': '2','stroke-linecap': 'round','stroke-linejoin': 'round','aria-hidden': 'true' })) svg.setAttribute(key,value);
+  const paths = kind === 'video' ? ['m6 3 14 9-14 9V3Z'] : kind === 'image' ? ['M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z','m21 15-5-5L5 21','M9 8h.01'] : ['m12 3 10 5-10 5L2 8l10-5Z','m2 12 10 5 10-5','m2 16 10 5 10-5'];
+  for (const d of paths) { const path = document.createElementNS(ns,'path'); path.setAttribute('d',d); svg.append(path); }
+  return svg;
+}
 export function card(post: Post) {
   const a = post.assets[0];
   const span = a && a.width > a.height ? 'sm:col-span-2' : a && a.height > a.width * 1.2 ? 'sm:row-span-2' : '';
@@ -23,14 +31,19 @@ export function card(post: Post) {
     const image = element('img','absolute inset-0 h-full w-full object-cover transition duration-300 group-hover:scale-105');
     image.src = mediaUrl(a.preview_key); image.alt = `Saved post by ${post.creator ? '@' + post.creator : 'an Instagram creator'}`;
     image.width = a.width; image.height = a.height; image.loading = 'lazy'; visual.append(image);
-    const badges = element('div','absolute inset-x-0 top-0 flex justify-between p-3');
-    badges.append(element('span',a.type === 'video' ? 'rounded-full bg-stone-950/60 px-3 py-1 text-xs text-white' : '',a.type === 'video' ? '▶ Video' : ''));
-    if (post.assets.length > 1) badges.append(element('span','rounded-full bg-stone-950/60 px-3 py-1 text-xs text-white',`▱ ${post.assets.length}`));
-    visual.append(badges);
   }
-  const meta = element('div','flex flex-col gap-3 bg-white p-4');
-  meta.append(tagsView(post.tags),element('div','text-xs text-stone-500',post.creator ? `@${post.creator} ↗` : 'Instagram ↗'));
-  link.append(visual,meta); return link;
+  const overlay = element('div','feed-overlay');
+  const badges = element('div','flex shrink-0 items-center gap-2');
+  if (post.assets.length > 1) {
+    const count = element('span','feed-badge gap-1 px-2');
+    count.append(feedIcon('layers'),element('span','',String(post.assets.length)),element('span','sr-only','media items')); badges.append(count);
+  }
+  const kind = a?.type === 'video' ? 'video' : 'image';
+  const type = element('span','feed-badge w-8');
+  type.append(feedIcon(kind),element('span','sr-only',kind === 'video' ? 'Video' : 'Photo')); badges.append(type);
+  overlay.append(element('span','feed-author',post.creator ? `@${post.creator}` : 'Instagram'),badges);
+  visual.append(overlay);
+  link.append(visual); return link;
 }
 export function postView(post: Post, notesHtml: string, urlFor = mediaUrl) {
   const root = element('div','grid md:grid-cols-5'); root.dataset.carousel = '';
